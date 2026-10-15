@@ -329,63 +329,47 @@ def render_hero_banner(
     """Render a dramatic, 4K aesthetic urban infrastructure hero banner."""
     apply_custom_css()
     bg_uri = get_image_base64("hero_skyline.jpg")
-    
-    # Inline background style if image found
     bg_style = f"background-image: url('{bg_uri}');" if bg_uri else "background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);"
     
     stats_html = ""
     if stats:
         items_html = "".join([
-            f"""
-            <div class="hero-stat-item">
-                <span class="hero-stat-value">{s.get('value', '')}</span>
-                <span class="hero-stat-label">{s.get('label', '')}</span>
-            </div>
-            """ for s in stats
+            f'<div class="hero-stat-item"><span class="hero-stat-value">{s.get("value", "")}</span><span class="hero-stat-label">{s.get("label", "")}</span></div>'
+            for s in stats
         ])
         stats_html = f'<div class="hero-stats-row">{items_html}</div>'
 
-    st.markdown(f"""
-    <div class="hero-container">
-        <div class="hero-bg" style="{bg_style}">
-            <div class="hero-overlay"></div>
-            <div class="hero-content">
-                <div class="hero-badge-pill">🏙️ {tag}</div>
-                <h1 class="hero-title">PropSight <span>Intelligence</span></h1>
-                <div class="hero-subtitle">{subtitle}</div>
-                {stats_html}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        f'<div class="hero-container">'
+        f'<div class="hero-bg" style="{bg_style}">'
+        f'<div class="hero-overlay"></div>'
+        f'<div class="hero-content">'
+        f'<div class="hero-badge-pill">🏙️ {tag}</div>'
+        f'<h1 class="hero-title">PropSight <span>Intelligence</span></h1>'
+        f'<div class="hero-subtitle">{subtitle}</div>'
+        f'{stats_html}'
+        f'</div></div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 def render_header(title: str, subtitle: str, page_tag: str = "Pune & PCMC Market Intelligence"):
     """Render the standard executive header across subpages."""
     apply_custom_css()
-    st.markdown(f"""
-    <div class="propsight-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-                <h1 class="propsight-title">{title}</h1>
-                <div class="propsight-subtitle">{subtitle}</div>
-            </div>
-            <div style="text-align: right;">
-                <span class="badge badge-synthetic">Demonstration Baseline</span>
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 0.25rem;">{page_tag}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        f'<div class="propsight-header">'
+        f'<div style="display: flex; justify-content: space-between; align-items: flex-start;">'
+        f'<div><h1 class="propsight-title">{title}</h1><div class="propsight-subtitle">{subtitle}</div></div>'
+        f'<div style="text-align: right;"><span class="badge badge-synthetic">Demonstration Baseline</span>'
+        f'<div style="font-size: 0.75rem; color: #94A3B8; margin-top: 0.25rem;">{page_tag}</div></div>'
+        f'</div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 def render_kpi_card(label: str, value: str, caption: str = ""):
     """Render a clean, high-contrast metric card."""
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value}</div>
-        {f'<div class="kpi-caption">{caption}</div>' if caption else ''}
-    </div>
-    """, unsafe_allow_html=True)
+    cap_html = f'<div class="kpi-caption">{caption}</div>' if caption else ''
+    html = f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div>{cap_html}</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 def render_showcase_card(
     title: str,
@@ -397,23 +381,43 @@ def render_showcase_card(
 ):
     """Render an aesthetic visual card with image header and hover zoom."""
     img_uri = get_image_base64(image_name)
-    img_src = img_uri if img_uri else f"https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800"
+    img_src = img_uri if img_uri else "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800"
 
-    st.markdown(f"""
-    <div class="showcase-card">
-        <div class="showcase-img-wrap">
-            <img class="showcase-img" src="{img_src}" alt="{title}" />
-            <span class="showcase-badge">{badge_text}</span>
-        </div>
-        <div class="showcase-body">
-            <div>
-                <h4 class="showcase-title">{title}</h4>
-                <div class="showcase-desc">{desc}</div>
-            </div>
-            <div class="showcase-meta">
-                <span>{meta_left}</span>
-                <span style="font-weight: 600; color: #0EA5E9;">{meta_right}</span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        f'<div class="showcase-card">'
+        f'<div class="showcase-img-wrap">'
+        f'<img class="showcase-img" src="{img_src}" alt="{title}" />'
+        f'<span class="showcase-badge">{badge_text}</span>'
+        f'</div>'
+        f'<div class="showcase-body">'
+        f'<div><h4 class="showcase-title">{title}</h4><div class="showcase-desc">{desc}</div></div>'
+        f'<div class="showcase-meta"><span>{meta_left}</span><span style="font-weight: 600; color: #0EA5E9;">{meta_right}</span></div>'
+        f'</div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+def render_module_nav_card(icon: str, title: str, desc: str, page_label: str):
+    """Render a clean navigation card for application modules."""
+    html = (
+        f'<div class="showcase-card" style="padding: 1.25rem;">'
+        f'<div style="font-size: 1.5rem; margin-bottom: 0.35rem;">{icon}</div>'
+        f'<h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">{title}</h4>'
+        f'<p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">{desc}</p>'
+        f'<div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: {page_label} →</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+def render_spotlight_card(label: str, name: str, rate_str: str, cagr_str: str, caption: str, border_color: str = "#0EA5E9"):
+    """Render a micro-market spotlight card."""
+    html = (
+        f'<div class="kpi-card" style="border-top: 3px solid {border_color};">'
+        f'<div class="kpi-label">{label}</div>'
+        f'<h4 style="margin: 0.2rem 0; color: #0F172A;">{name}</h4>'
+        f'<div style="font-size: 1.3rem; font-weight: 700; color: #0F172A;">{rate_str}</div>'
+        f'<div style="font-size: 0.78rem; color: #10B981; font-weight: 600;">{cagr_str}</div>'
+        f'<div class="kpi-caption">{caption}</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+

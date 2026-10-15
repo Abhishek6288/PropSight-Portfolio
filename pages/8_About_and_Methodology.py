@@ -5,6 +5,7 @@ system architecture, and responsible use disclaimers.
 """
 
 import streamlit as st
+import pandas as pd
 import json
 
 from src.utils.styles import apply_custom_css, render_header

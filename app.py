@@ -20,6 +20,8 @@ from src.utils.styles import (
     render_hero_banner,
     render_kpi_card,
     render_showcase_card,
+    render_module_nav_card,
+    render_spotlight_card,
     get_image_base64
 )
 from src.utils.formatting import format_inr_lakhs, format_rate_per_sqft
@@ -165,73 +167,46 @@ st.markdown("Select any core tool from the navigation sidebar or jump into a ded
 mod_col1, mod_col2, mod_col3 = st.columns(3)
 
 with mod_col1:
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">📊</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">1. Executive Dashboard</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Explore city-wide pricing indicators, regional Pune vs PCMC comparisons, property type splits, and dataset freshness.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 1_Executive_Dashboard →</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">🎯</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">2. Property Valuation</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Input custom property specifications to compute ML-driven valuations with empirical 80% confidence bands and instant SHAP attribution.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 2_Property_Valuation →</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_nav_card(
+        icon="📊",
+        title="1. Executive Dashboard",
+        desc="Explore city-wide pricing indicators, regional Pune vs PCMC comparisons, property type splits, and dataset freshness.",
+        page_label="1_Executive_Dashboard"
+    )
+    render_module_nav_card(
+        icon="🎯",
+        title="2. Property Valuation",
+        desc="Input custom property specifications to compute ML-driven valuations with empirical 80% confidence bands and instant SHAP attribution.",
+        page_label="2_Property_Valuation"
+    )
 
 with mod_col2:
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">⚖️</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">3. Fair-Price Analyzer</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Evaluate asking prices against model predictions and empirical uncertainty intervals with clear, defensible classifications.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 3_Fair_Price_Analyzer →</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">📍</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">4. Locality Intelligence</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Deep-dive into 28 micro-markets across Pune & PCMC with historical 7-year CAGR, inventory splits, and cross-locality benchmarking.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 4_Locality_Intelligence →</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_nav_card(
+        icon="⚖️",
+        title="3. Fair-Price Analyzer",
+        desc="Evaluate asking prices against model predictions and empirical uncertainty intervals with clear, defensible classifications.",
+        page_label="3_Fair_Price_Analyzer"
+    )
+    render_module_nav_card(
+        icon="📍",
+        title="4. Locality Intelligence",
+        desc="Deep-dive into 28 micro-markets across Pune & PCMC with historical 7-year CAGR, inventory splits, and cross-locality benchmarking.",
+        page_label="4_Locality_Intelligence"
+    )
 
 with mod_col3:
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">📈</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">5. Market Forecasts & Scenarios</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Statistical ARIMA time-series projections with walk-forward back-testing and 3-year macroeconomic scenario trajectories.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 5_Market_Forecasts_and_Scenarios →</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="showcase-card" style="padding: 1.25rem;">
-        <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">🔍</div>
-        <h4 style="margin: 0 0 0.4rem 0; color: #0F172A;">6. Model Insights & Explainability</h4>
-        <p style="font-size: 0.83rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.45;">
-            Inspect the 6-architecture benchmark tournament, global SHAP feature importance rankings, and correlation vs. causation principles.
-        </p>
-        <div style="font-size: 0.78rem; font-weight: 600; color: #0EA5E9;">Open Page: 6_Model_Insights_and_Explainability →</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_nav_card(
+        icon="📈",
+        title="5. Market Forecasts & Scenarios",
+        desc="Statistical ARIMA time-series projections with walk-forward back-testing and 3-year macroeconomic scenario trajectories.",
+        page_label="5_Market_Forecasts_and_Scenarios"
+    )
+    render_module_nav_card(
+        icon="🔍",
+        title="6. Model Insights & Explainability",
+        desc="Inspect the 6-architecture benchmark tournament, global SHAP feature importance rankings, and correlation vs. causation principles.",
+        page_label="6_Model_Insights_and_Explainability"
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -240,48 +215,44 @@ st.markdown("### 🌟 Micro-Market Spotlight: Prime Pune & PCMC Hubs")
 spot1, spot2, spot3, spot4 = st.columns(4)
 
 with spot1:
-    st.markdown("""
-    <div class="kpi-card" style="border-top: 3px solid #0EA5E9;">
-        <div class="kpi-label">West IT Corridor</div>
-        <h4 style="margin: 0.2rem 0; color: #0F172A;">Baner</h4>
-        <div style="font-size: 1.3rem; font-weight: 700; color: #0F172A;">₹10,225/sqft</div>
-        <div style="font-size: 0.78rem; color: #10B981; font-weight: 600;">+6.2% 7-Yr CAGR</div>
-        <div class="kpi-caption">High residential absorption, near Balewadi High St.</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_spotlight_card(
+        label="West IT Corridor",
+        name="Baner",
+        rate_str="₹10,225/sqft",
+        cagr_str="+6.2% 7-Yr CAGR",
+        caption="High residential absorption, near Balewadi High St.",
+        border_color="#0EA5E9"
+    )
 
 with spot2:
-    st.markdown("""
-    <div class="kpi-card" style="border-top: 3px solid #6366F1;">
-        <div class="kpi-label">East Tech Hub</div>
-        <h4 style="margin: 0.2rem 0; color: #0F172A;">Kharadi</h4>
-        <div style="font-size: 1.3rem; font-weight: 700; color: #0F172A;">₹9,640/sqft</div>
-        <div style="font-size: 0.78rem; color: #10B981; font-weight: 600;">+6.8% 7-Yr CAGR</div>
-        <div class="kpi-caption">EON Free Zone, World Trade Center SEZ</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_spotlight_card(
+        label="East Tech Hub",
+        name="Kharadi",
+        rate_str="₹9,640/sqft",
+        cagr_str="+6.8% 7-Yr CAGR",
+        caption="EON Free Zone, World Trade Center SEZ",
+        border_color="#6366F1"
+    )
 
 with spot3:
-    st.markdown("""
-    <div class="kpi-card" style="border-top: 3px solid #10B981;">
-        <div class="kpi-label">PCMC Growth Corridor</div>
-        <h4 style="margin: 0.2rem 0; color: #0F172A;">Wakad</h4>
-        <div style="font-size: 1.3rem; font-weight: 700; color: #0F172A;">₹8,710/sqft</div>
-        <div style="font-size: 0.78rem; color: #10B981; font-weight: 600;">+5.9% 7-Yr CAGR</div>
-        <div class="kpi-caption">Prime gateway to Hinjewadi Tech Park</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_spotlight_card(
+        label="PCMC Growth Corridor",
+        name="Wakad",
+        rate_str="₹8,710/sqft",
+        cagr_str="+5.9% 7-Yr CAGR",
+        caption="Prime gateway to Hinjewadi Tech Park",
+        border_color="#10B981"
+    )
 
 with spot4:
-    st.markdown("""
-    <div class="kpi-card" style="border-top: 3px solid #F59E0B;">
-        <div class="kpi-label">Prime Central Pune</div>
-        <h4 style="margin: 0.2rem 0; color: #0F172A;">Kothrud</h4>
-        <div style="font-size: 1.3rem; font-weight: 700; color: #0F172A;">₹12,535/sqft</div>
-        <div style="font-size: 0.78rem; color: #10B981; font-weight: 600;">+5.4% 7-Yr CAGR</div>
-        <div class="kpi-caption">Established cultural hub with Metro Line 2</div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_spotlight_card(
+        label="Prime Central Pune",
+        name="Kothrud",
+        rate_str="₹12,535/sqft",
+        cagr_str="+5.4% 7-Yr CAGR",
+        caption="Established cultural hub with Metro Line 2",
+        border_color="#F59E0B"
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
