@@ -17,6 +17,13 @@ from src.utils.config import (
     AMENITIES_LIST
 )
 from src.valuation.fair_price import FairPriceAnalyzer, FairPriceResult
+from src.data.loader import DataLoader
+from src.utils.charts import (
+    build_valuation_gauge_bullet,
+    apply_chart_theme,
+    PROPSIGHT_COLORS,
+    PROPSIGHT_MODEBAR_CONFIG
+)
 
 st.set_page_config(page_title="Fair-Price Analyzer — PropSight", page_icon="⚖️", layout="wide")
 apply_custom_css()
@@ -162,54 +169,59 @@ with col_output:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Visual Comparison Gauge / Range Chart
-            st.markdown("#### 📐 Asking Price vs Model Uncertainty Band")
-            fig_range = go.Figure()
+            # Fetch locality benchmark median
+            df_props = DataLoader.load_properties(cleaned=True)
+            loc_subset = df_props[df_props["locality"] == f_loc]
+            loc_median = float(loc_subset["price_lakhs"].median()) if len(loc_subset) > 0 else None
+            loc_avg_rate = float(loc_subset["price_per_sqft"].mean()) if len(loc_subset) > 0 else 8500.0
+            loc_median_rate = float(loc_subset["price_per_sqft"].median()) if len(loc_subset) > 0 else 8200.0
 
-            # Uncertainty range horizontal bar
-            fig_range.add_trace(go.Bar(
-                name="Expected Range (80% CI)",
-                y=["Property Value"],
-                x=[res.uncertainty_upper_lakhs - res.uncertainty_lower_lakhs],
-                base=[res.uncertainty_lower_lakhs],
-                orientation="h",
-                marker=dict(color="#BAE6FD", line=dict(color="#0284C7", width=1.5)),
-                text=f"Expected Band: ₹{res.uncertainty_lower_lakhs:.1f}L – ₹{res.uncertainty_upper_lakhs:.1f}L",
-                textposition="inside",
-                hoverinfo="text"
-            ))
-
-            # Model Point Estimate marker
-            fig_range.add_trace(go.Scatter(
-                x=[res.estimated_price_lakhs],
-                y=["Property Value"],
-                mode="markers",
-                name="Model Point Estimate",
-                marker=dict(size=14, color="#0F172A", symbol="diamond"),
-                text=f"Model Est: ₹{res.estimated_price_lakhs:.2f}L",
-                hoverinfo="text"
-            ))
-
-            # Asking Price marker
-            ask_color = "#10B981" if res.classification == "Potentially Undervalued" else ("#EF4444" if res.classification == "Potentially Overpriced" else "#0284C7")
-            fig_range.add_trace(go.Scatter(
-                x=[res.asking_price_lakhs],
-                y=["Property Value"],
-                mode="markers",
-                name="Seller Asking Price",
-                marker=dict(size=16, color=ask_color, symbol="circle"),
-                text=f"Asking Price: ₹{res.asking_price_lakhs:.2f}L",
-                hoverinfo="text"
-            ))
-
-            fig_range.update_layout(
-                xaxis_title="Property Value (₹ Lakhs)",
-                plot_bgcolor="#FFFFFF",
-                height=220,
-                margin=dict(l=20, r=20, t=30, b=40),
-                legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1)
+            # Chart 1: Visual Comparison Bullet Gauge
+            st.markdown("#### 🎯 Asking Price vs. Model Valuation & 80% Confidence Interval")
+            fig_bullet = build_valuation_gauge_bullet(
+                estimated_lakhs=res.estimated_price_lakhs,
+                lower_lakhs=res.uncertainty_lower_lakhs,
+                upper_lakhs=res.uncertainty_upper_lakhs,
+                asking_lakhs=res.asking_price_lakhs,
+                locality_median_lakhs=loc_median
             )
-            st.plotly_chart(fig_range, use_container_width=True)
+            st.plotly_chart(fig_bullet, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
+
+            # Chart 2: Rate per Sq.Ft. Micro-Market Benchmark
+            st.markdown("#### 📊 Rate per Square Foot: Micro-Market Benchmark")
+            asking_rate = (res.asking_price_lakhs * 100000.0) / f_carpet
+            est_rate = (res.estimated_price_lakhs * 100000.0) / f_carpet
+
+            benchmark_df = pd.DataFrame([
+                {"Category": "Seller Asking Rate", "Rate (₹/sq.ft.)": round(asking_rate, 1), "Color": PROPSIGHT_COLORS["rose_accent"] if res.classification == "Potentially Overpriced" else PROPSIGHT_COLORS["emerald_accent"]},
+                {"Category": "Model Estimated Rate", "Rate (₹/sq.ft.)": round(est_rate, 1), "Color": PROPSIGHT_COLORS["primary_teal"]},
+                {"Category": f"{f_loc} Median Rate", "Rate (₹/sq.ft.)": round(loc_median_rate, 1), "Color": PROPSIGHT_COLORS["blue_accent"]},
+                {"Category": f"{f_loc} Average Rate", "Rate (₹/sq.ft.)": round(loc_avg_rate, 1), "Color": PROPSIGHT_COLORS["slate_dark"]}
+            ])
+
+            fig_rate_bench = px.bar(
+                benchmark_df,
+                x="Rate (₹/sq.ft.)",
+                y="Category",
+                orientation="h",
+                color="Category",
+                color_discrete_map={row["Category"]: row["Color"] for _, row in benchmark_df.iterrows()}
+            )
+            fig_rate_bench.update_traces(
+                texttemplate="₹%{x:,.0f}/sq.ft.",
+                textposition="outside",
+                textfont=dict(size=11, color=PROPSIGHT_COLORS["slate_dark"]),
+                cliponaxis=False
+            )
+            apply_chart_theme(
+                fig_rate_bench,
+                title=f"Rate/Sq.Ft. Positioning vs. {f_loc} Residential Market",
+                xaxis_title="Effective Rate (₹/sq.ft.)",
+                yaxis_title="",
+                height=250,
+                show_legend=False
+            )
+            st.plotly_chart(fig_rate_bench, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
             # Methodological Disclosure & Disclaimer Box
             st.markdown(f"""

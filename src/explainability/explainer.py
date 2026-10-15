@@ -224,21 +224,35 @@ class PropertyValuationExplainer:
             textposition="outside",
             text=texts,
             y=y_values,
-            connector={"line": {"color": "#94A3B8"}},
-            decreasing={"marker": {"color": "#EF4444"}},
-            increasing={"marker": {"color": "#10B981"}},
-            totals={"marker": {"color": "#0F172A"}}
+            connector={"line": {"color": "#CBD5E1", "width": 1.5, "dash": "dot"}},
+            decreasing={"marker": {"color": "#E11D48"}},  # Rose accent
+            increasing={"marker": {"color": "#0D9488"}},  # Muted Teal
+            totals={"marker": {"color": "#0F172A"}},       # Navy
+            hovertemplate="<b>%{x}</b><br>Attribution: %{y:+.2f}L<br>Running Value: %{text}<extra></extra>"
         ))
 
         fig.update_layout(
-            title="Individual Prediction Attribution (SHAP Waterfall Breakdown)",
-            title_font=dict(size=14, color="#0F172A"),
+            title={
+                "text": "Individual Prediction Attribution (SHAP Waterfall Breakdown)",
+                "font": {"family": "Plus Jakarta Sans, sans-serif", "size": 15, "color": "#0F172A", "weight": "bold"},
+                "x": 0.0, "xanchor": "left"
+            },
             showlegend=False,
-            height=420,
-            margin=dict(l=20, r=20, t=50, b=80),
-            yaxis_title="Property Valuation (₹ Lakhs)",
+            height=430,
+            paper_bgcolor="#FFFFFF",
             plot_bgcolor="#FFFFFF",
-            xaxis=dict(tickangle=-25, tickfont=dict(size=11))
+            margin=dict(l=35, r=25, t=55, b=90),
+            yaxis={
+                "title": {"text": "Valuation (₹ Lakhs)", "font": {"size": 12, "color": "#64748B"}},
+                "showgrid": True,
+                "gridcolor": "#F1F5F9",
+                "linecolor": "#E2E8F0"
+            },
+            xaxis={
+                "tickangle": -25,
+                "tickfont": {"size": 10.5, "color": "#334155"},
+                "linecolor": "#E2E8F0"
+            }
         )
 
         return fig

@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 
 from src.utils.styles import apply_custom_css, render_header, render_kpi_card
 from src.utils.formatting import format_rate_per_sqft, format_pct
+from src.utils.charts import PROPSIGHT_MODEBAR_CONFIG, PROPSIGHT_COLORS
 from src.forecasting.engine import LocalityForecastEngine
 from src.analytics.locality import LocalityAnalytics
 
@@ -102,16 +103,27 @@ with b3:
         caption="Absolute deviation / sq.ft."
     )
 
-# Back-testing comparison table
-bt_rows = []
-for model_name, m_res in backtest["models"].items():
-    bt_rows.append({
-        "Model": model_name,
-        "Back-Test MAE (₹/sq.ft.)": m_res["mae"],
-        "Back-Test MAPE (%)": f"{m_res['mape_pct']:.2f}%",
-        "Evaluation": "Selected Estimator" if model_name == backtest["selected_best_model"] else "Baseline"
-    })
-st.dataframe(pd.DataFrame(bt_rows), use_container_width=True, hide_index=True)
+# Visualizer & Scorecard row
+col_bt_chart, col_bt_table = st.columns([1.5, 1.0])
+with col_bt_chart:
+    fig_bt = forecast_engine.plot_backtest_comparison(backtest)
+    st.plotly_chart(fig_bt, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
+
+with col_bt_table:
+    st.markdown("#### 📋 Held-Out 2024 Validation Scorecard")
+    bt_rows = []
+    for model_name, m_res in backtest["models"].items():
+        bt_rows.append({
+            "Model": model_name,
+            "MAE (₹/sq.ft.)": m_res["mae"],
+            "MAPE (%)": f"{m_res['mape_pct']:.2f}%",
+            "Role": "⭐ Selected" if model_name == backtest["selected_best_model"] else "Baseline"
+        })
+    st.dataframe(pd.DataFrame(bt_rows), use_container_width=True, hide_index=True)
+    st.caption(
+        "Scientific Note: Time-series models strictly preserve temporal causality. "
+        "The model is evaluated only on future quarters it has never observed during training."
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -121,11 +133,11 @@ st.markdown(f"### 📈 Statistical Rate Projections & Uncertainty Bands — {sel
 with st.spinner("Fitting ARIMA and computing expanding prediction intervals..."):
     fc_res = forecast_engine.generate_forecast(selected_loc, steps_ahead=forecast_steps)
 
-col_chart, col_table = st.columns([1.4, 1.0])
+col_chart, col_table = st.columns([1.5, 1.0])
 
 with col_chart:
     fig_fc = forecast_engine.plot_forecast_and_history(fc_res)
-    st.plotly_chart(fig_fc, use_container_width=True)
+    st.plotly_chart(fig_fc, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
 with col_table:
     st.markdown("#### Projected Quarterly Rates")
@@ -148,16 +160,18 @@ st.caption("Assumption-driven scenarios clearly separated from statistical model
 scenario_res = forecast_engine.generate_scenarios(selected_loc, horizon_years=3)
 
 fig_sc = forecast_engine.plot_scenarios(scenario_res)
-st.plotly_chart(fig_sc, use_container_width=True)
+st.plotly_chart(fig_sc, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
 # Scenario Assumptions and Metrics Table
 sc_cards = st.columns(3)
+card_colors = [PROPSIGHT_COLORS["rose_accent"], PROPSIGHT_COLORS["blue_accent"], PROPSIGHT_COLORS["emerald_accent"]]
 for i, (s_name, s_info) in enumerate(scenario_res["scenarios"].items()):
+    c_color = card_colors[i % len(card_colors)]
     with sc_cards[i]:
         st.markdown(f"""
-        <div class="kpi-card" style="border-top: 4px solid {s_info['color']};">
+        <div class="kpi-card" style="border-top: 4px solid {c_color};">
             <h4 style="margin: 0 0 0.5rem 0; color: #0F172A;">{s_name}</h4>
-            <div style="font-size: 1.25rem; font-weight: 700; color: {s_info['color']}; margin-bottom: 0.25rem;">
+            <div style="font-size: 1.25rem; font-weight: 700; color: {c_color}; margin-bottom: 0.25rem;">
                 ₹{s_info['terminal_rate']:,.0f}/sq.ft.
             </div>
             <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 0.75rem;">

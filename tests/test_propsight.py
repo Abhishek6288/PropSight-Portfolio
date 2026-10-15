@@ -268,3 +268,47 @@ def test_shap_explanation():
     # Verify Plotly waterfall figure creation
     fig = explainer.plot_waterfall(exp)
     assert fig is not None
+
+# --- 9. Interactive Chart & Visualization Tests ---
+def test_forecast_plots():
+    engine = LocalityForecastEngine()
+    fc = engine.generate_forecast("Baner", steps_ahead=4)
+    fig_fc = engine.plot_forecast_and_history(fc)
+    assert fig_fc is not None
+    assert len(fig_fc.data) >= 3
+
+    sc = engine.generate_scenarios("Baner", horizon_years=3)
+    fig_sc = engine.plot_scenarios(sc)
+    assert fig_sc is not None
+    assert len(fig_sc.data) >= 3
+
+    bt = engine.backtest_models("Baner", test_quarters=4)
+    fig_bt = engine.plot_backtest_comparison(bt)
+    assert fig_bt is not None
+    assert len(fig_bt.data) >= 2
+
+def test_chart_utilities():
+    from src.utils.charts import (
+        build_actual_vs_predicted_scatter,
+        build_residuals_histogram,
+        build_valuation_gauge_bullet
+    )
+    y_act = np.array([50.0, 75.0, 100.0, 120.0])
+    y_pred = np.array([52.0, 74.0, 98.0, 125.0])
+
+    fig_act_pred = build_actual_vs_predicted_scatter(y_act, y_pred)
+    assert fig_act_pred is not None
+    assert len(fig_act_pred.data) == 2
+
+    fig_res = build_residuals_histogram(y_act, y_pred)
+    assert fig_res is not None
+
+    fig_bullet = build_valuation_gauge_bullet(
+        estimated_lakhs=85.0,
+        lower_lakhs=80.0,
+        upper_lakhs=90.0,
+        asking_lakhs=88.0,
+        locality_median_lakhs=82.0
+    )
+    assert fig_bullet is not None
+    assert len(fig_bullet.data) >= 3

@@ -7,10 +7,12 @@ outlier auditing, and data provenance disclosures.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from src.utils.styles import apply_custom_css, render_header, render_kpi_card
 from src.data.loader import DataLoader
 from src.data.schema import PROPERTY_SCHEMA_TYPES
+from src.utils.charts import apply_chart_theme, PROPSIGHT_COLORS, PROPSIGHT_MODEBAR_CONFIG
 
 st.set_page_config(page_title="Data Explorer — PropSight", page_icon="📁", layout="wide")
 apply_custom_css()
@@ -104,18 +106,27 @@ with tab_stats:
     st.dataframe(desc_df, use_container_width=True)
 
     st.markdown("#### Locality Inventory Distribution")
-    loc_counts = df_props["locality"].value_counts().reset_index()
-    loc_counts.columns = ["Locality", "Listing Count"]
+    loc_counts = df_props.groupby(["locality", "region"]).size().reset_index(name="Listing Count")
+    loc_counts = loc_counts.sort_values(by="Listing Count", ascending=False)
     fig_loc = px.bar(
         loc_counts,
-        x="Locality",
+        x="locality",
         y="Listing Count",
-        color="Listing Count",
-        color_continuous_scale="Blues",
-        title="Listing Distribution across Pune & PCMC Micro-Markets"
+        color="region",
+        color_discrete_map={"Pune": PROPSIGHT_COLORS["blue_accent"], "PCMC": PROPSIGHT_COLORS["emerald_accent"]},
+        text="Listing Count",
+        labels={"locality": "Micro-Market", "Listing Count": "Active Listings"}
     )
-    fig_loc.update_layout(plot_bgcolor="#FFFFFF", height=340, xaxis=dict(tickangle=-45))
-    st.plotly_chart(fig_loc, use_container_width=True)
+    fig_loc.update_traces(textposition="outside")
+    apply_chart_theme(
+        fig_loc,
+        title="Listing Inventory across Pune & PCMC Micro-Markets",
+        xaxis_title="Locality",
+        yaxis_title="Property Count",
+        height=360
+    )
+    fig_loc.update_xaxes(tickangle=-45)
+    st.plotly_chart(fig_loc, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
 # TAB 3: Quality & Outlier Diagnostics
 with tab_quality:
@@ -123,13 +134,31 @@ with tab_quality:
     
     col_q1, col_q2 = st.columns(2)
     with col_q1:
-        st.markdown("#### Missing Values Audit")
+        st.markdown("#### Missing Values & Feature Completeness")
         missing_df = pd.DataFrame({
             "Column": list(diag["missing_values"].keys()),
             "Missing Count": list(diag["missing_values"].values()),
-            "Missing %": [f"{(v/diag['total_raw_listings'])*100:.2f}%" for v in diag["missing_values"].values()]
+            "Completeness %": [f"{(1 - (v / diag['total_raw_listings'])) * 100:.1f}%" for v in diag["missing_values"].values()]
         })
         st.dataframe(missing_df, use_container_width=True, hide_index=True)
+
+        fig_comp = go.Figure(go.Bar(
+            x=list(diag["missing_values"].keys()),
+            y=[(1 - (v / diag["total_raw_listings"])) * 100 for v in diag["missing_values"].values()],
+            text=[f"{(1 - (v / diag['total_raw_listings'])) * 100:.1f}%" for v in diag["missing_values"].values()],
+            textposition="outside",
+            marker_color=PROPSIGHT_COLORS["primary_teal"],
+            hovertemplate="<b>%{x}</b><br>Completeness: %{y:.2f}%<extra></extra>"
+        ))
+        apply_chart_theme(
+            fig_comp,
+            title="Feature Completeness Audit (%)",
+            xaxis_title="Schema Attribute",
+            yaxis_title="Completeness Rate (%)",
+            height=280
+        )
+        fig_comp.update_yaxes(range=[80, 105])
+        st.plotly_chart(fig_comp, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
     with col_q2:
         st.markdown("#### Outlier & Bound Checks")
@@ -142,17 +171,25 @@ with tab_quality:
         """)
 
     # Target Distribution Boxplot
-    st.markdown("#### Locality-Level Price/Sq.Ft. Distribution (Boxplot)")
+    st.markdown("#### Locality-Level Price/Sq.Ft. Distribution & Outliers (Boxplot)")
     fig_box = px.box(
         df_props,
         x="locality",
         y="price_per_sqft",
         color="region",
-        color_discrete_map={"Pune": "#0284C7", "PCMC": "#10B981"},
-        labels={"locality": "Locality", "price_per_sqft": "Price/Sq.Ft. (₹)"}
+        points="outliers",
+        color_discrete_map={"Pune": PROPSIGHT_COLORS["blue_accent"], "PCMC": PROPSIGHT_COLORS["emerald_accent"]},
+        labels={"locality": "Micro-Market", "price_per_sqft": "Price/Sq.Ft. (₹)"}
     )
-    fig_box.update_layout(plot_bgcolor="#FFFFFF", height=380, xaxis=dict(tickangle=-45))
-    st.plotly_chart(fig_box, use_container_width=True)
+    apply_chart_theme(
+        fig_box,
+        title="Price/Sq.Ft. Distribution by Locality with Outlier Points",
+        xaxis_title="Micro-Market",
+        yaxis_title="Price per Sq.Ft. (₹)",
+        height=420
+    )
+    fig_box.update_xaxes(tickangle=-45)
+    st.plotly_chart(fig_box, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
 # TAB 4: Data Dictionary
 with tab_dict:

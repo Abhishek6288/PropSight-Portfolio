@@ -10,11 +10,21 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 
+from sklearn.model_selection import train_test_split
 from src.utils.styles import apply_custom_css, render_header, render_kpi_card
 from src.utils.formatting import format_inr_lakhs
-from src.utils.config import MODEL_METADATA_PATH, SUPPORTED_LOCALITIES, PROPERTY_TYPES
+from src.utils.config import MODEL_METADATA_PATH, SUPPORTED_LOCALITIES, PROPERTY_TYPES, RANDOM_SEED, TARGET_COLUMN
+from src.data.schema import MODEL_FEATURE_COLUMNS
 from src.explainability.explainer import PropertyValuationExplainer
+from src.valuation.engine import PropertyValuationEngine
 from src.data.loader import DataLoader
+from src.utils.charts import (
+    apply_chart_theme,
+    PROPSIGHT_COLORS,
+    PROPSIGHT_MODEBAR_CONFIG,
+    build_actual_vs_predicted_scatter,
+    build_residuals_histogram
+)
 
 st.set_page_config(page_title="Model Insights & Explainability — PropSight", page_icon="🔍", layout="wide")
 apply_custom_css()
@@ -35,6 +45,19 @@ if MODEL_METADATA_PATH.exists():
 @st.cache_resource
 def get_explainer():
     return PropertyValuationExplainer()
+
+@st.cache_data
+def get_heldout_test_predictions():
+    df = DataLoader.load_properties(cleaned=True)
+    X = df[MODEL_FEATURE_COLUMNS]
+    y = df[TARGET_COLUMN].values
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.20, random_state=RANDOM_SEED
+    )
+    engine = PropertyValuationEngine()
+    X_test_trans = engine.preprocessor.transform(X_test)
+    y_pred_test = engine.model.predict(X_test_trans)
+    return y_test, y_pred_test
 
 explainer = get_explainer()
 
@@ -101,31 +124,69 @@ with tab_benchmark:
     df_eval = pd.DataFrame(records).sort_values(by="Test R²", ascending=False)
     st.dataframe(df_eval, use_container_width=True, hide_index=True)
 
-    # Evaluation Bar Chart
+    # Evaluation Bar Charts (Themed)
     c_chart1, c_chart2 = st.columns(2)
+    best_name = metadata.get("selected_model", "Gradient Boosting")
+    colors_arch = [
+        PROPSIGHT_COLORS["primary_teal"] if arch == best_name else PROPSIGHT_COLORS["slate_muted"]
+        for arch in df_eval["Architecture"]
+    ]
+
     with c_chart1:
-        fig_r2 = px.bar(
-            df_eval,
-            x="Architecture",
-            y="Test R²",
-            color="Architecture",
+        fig_r2 = go.Figure(go.Bar(
+            x=df_eval["Architecture"],
+            y=df_eval["Test R²"],
+            text=df_eval["Test R²"].apply(lambda v: f"{v:.4f}"),
+            textposition="outside",
+            marker_color=colors_arch,
+            hovertemplate="<b>%{x}</b><br>Held-Out Test R²: %{y:.4f}<extra></extra>"
+        ))
+        apply_chart_theme(
+            fig_r2,
             title="Held-Out Test R² (Higher is Better)",
-            text="Test R²"
+            xaxis_title="Candidate Model Architecture",
+            yaxis_title="R² Score",
+            height=330
         )
-        fig_r2.update_layout(plot_bgcolor="#FFFFFF", height=320, showlegend=False)
-        st.plotly_chart(fig_r2, use_container_width=True)
+        min_r2 = float(df_eval["Test R²"].min())
+        fig_r2.update_yaxes(range=[max(0.0, min_r2 * 0.92), 1.02])
+        st.plotly_chart(fig_r2, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
     with c_chart2:
-        fig_mae = px.bar(
-            df_eval,
-            x="Architecture",
-            y="Test MAE (₹ Lakhs)",
-            color="Architecture",
-            title="Held-Out Test MAE in ₹ Lakhs (Lower is Better)",
-            text="Test MAE (₹ Lakhs)"
+        fig_mae = go.Figure(go.Bar(
+            x=df_eval["Architecture"],
+            y=df_eval["Test MAE (₹ Lakhs)"],
+            text=df_eval["Test MAE (₹ Lakhs)"].apply(lambda v: f"₹{v:.2f}L"),
+            textposition="outside",
+            marker_color=colors_arch,
+            hovertemplate="<b>%{x}</b><br>Held-Out Test MAE: ₹%{y:.2f} Lakhs<extra></extra>"
+        ))
+        apply_chart_theme(
+            fig_mae,
+            title="Held-Out Test MAE (Lower is Better)",
+            xaxis_title="Candidate Model Architecture",
+            yaxis_title="MAE (₹ Lakhs)",
+            height=330
         )
-        fig_mae.update_layout(plot_bgcolor="#FFFFFF", height=320, showlegend=False)
-        st.plotly_chart(fig_mae, use_container_width=True)
+        st.plotly_chart(fig_mae, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Held-Out Test Evaluation Diagnostics (PRD Requirement)
+    st.markdown("#### 🎯 Held-Out Test Set Generalization Diagnostics (720 Properties)")
+    st.caption("Rigorous empirical evaluation comparing actual listing prices against predictions on unobserved test data.")
+
+    with st.spinner("Loading held-out test predictions..."):
+        y_test, y_pred_test = get_heldout_test_predictions()
+
+    col_diag1, col_diag2 = st.columns(2)
+    with col_diag1:
+        fig_scatter = build_actual_vs_predicted_scatter(y_test, y_pred_test, sample_size=720)
+        st.plotly_chart(fig_scatter, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
+
+    with col_diag2:
+        fig_residuals = build_residuals_histogram(y_test, y_pred_test)
+        st.plotly_chart(fig_residuals, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
 # TAB 2: Global Feature Importance
 with tab_global_shap:
@@ -135,25 +196,33 @@ with tab_global_shap:
     in reducing prediction error across all 3,600 properties in Pune & PCMC.
     """)
 
-    df_importance = explainer.get_global_importance(top_n=14)
+    df_importance = explainer.get_global_importance(top_n=12)
+    df_imp_sorted = df_importance.sort_values(by="importance_score", ascending=True)
 
-    fig_imp = px.bar(
-        df_importance.sort_values(by="importance_score", ascending=True),
-        x="importance_score",
-        y="feature_name",
+    top_driver_colors = [
+        PROPSIGHT_COLORS["primary_teal"] if score >= df_imp_sorted["importance_score"].quantile(0.65)
+        else PROPSIGHT_COLORS["blue_accent"] if score >= df_imp_sorted["importance_score"].quantile(0.35)
+        else PROPSIGHT_COLORS["slate_muted"]
+        for score in df_imp_sorted["importance_score"]
+    ]
+
+    fig_imp = go.Figure(go.Bar(
+        x=df_imp_sorted["importance_score"],
+        y=df_imp_sorted["feature_name"],
         orientation="h",
-        color="importance_score",
-        color_continuous_scale="Teal",
-        labels={"importance_score": "Relative Importance Weight", "feature_name": "Property Attribute"},
-        title="Top Model Feature Drivers Across Pune & PCMC"
+        text=df_imp_sorted["importance_score"].apply(lambda v: f"{v*100:.1f}%"),
+        textposition="outside",
+        marker_color=top_driver_colors,
+        hovertemplate="<b>%{y}</b><br>Relative Feature Attribution: %{x:.4f} (%{text})<extra></extra>"
+    ))
+    apply_chart_theme(
+        fig_imp,
+        title="Top Model Feature Drivers Across Pune & PCMC (Global Importance)",
+        xaxis_title="Relative Attribution Weight",
+        yaxis_title="Property Attribute",
+        height=450
     )
-    fig_imp.update_layout(
-        plot_bgcolor="#FFFFFF",
-        height=450,
-        margin=dict(l=20, r=20, t=40, b=30),
-        coloraxis_showscale=False
-    )
-    st.plotly_chart(fig_imp, use_container_width=True)
+    st.plotly_chart(fig_imp, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
     # Explanation Callout
     st.markdown("""
@@ -202,7 +271,7 @@ with tab_interactive_shap:
 
     # Render Waterfall
     fig_local = explainer.plot_waterfall(exp_res)
-    st.plotly_chart(fig_local, use_container_width=True)
+    st.plotly_chart(fig_local, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
     # Methodology Alert
     st.markdown("""

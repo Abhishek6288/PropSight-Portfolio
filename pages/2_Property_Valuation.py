@@ -18,6 +18,8 @@ from src.utils.config import (
 )
 from src.valuation.engine import PropertyValuationEngine, ValuationResult
 from src.explainability.explainer import PropertyValuationExplainer
+from src.data.loader import DataLoader
+from src.utils.charts import build_valuation_gauge_bullet, PROPSIGHT_MODEBAR_CONFIG
 
 st.set_page_config(page_title="Property Valuation — PropSight", page_icon="🎯", layout="wide")
 apply_custom_css()
@@ -153,10 +155,24 @@ with col_output:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
+            # Interactive Bullet Gauge: Valuation & Confidence Band
+            st.markdown("#### 🎯 Valuation Confidence Band & Locality Benchmark")
+            df_props = DataLoader.load_properties(cleaned=True)
+            loc_subset = df_props[df_props["locality"] == f_loc]
+            loc_median = float(loc_subset["price_lakhs"].median()) if len(loc_subset) > 0 else None
+
+            fig_bullet = build_valuation_gauge_bullet(
+                estimated_lakhs=val_result.estimated_price_lakhs,
+                lower_lakhs=val_result.uncertainty_lower_lakhs,
+                upper_lakhs=val_result.uncertainty_upper_lakhs,
+                locality_median_lakhs=loc_median
+            )
+            st.plotly_chart(fig_bullet, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
+
             # SHAP Waterfall Attribution Chart
-            st.markdown("#### 🔬 Key Prediction Drivers (SHAP Waterfall)")
+            st.markdown("#### 🔬 Key Prediction Drivers (SHAP Waterfall Breakdown)")
             fig_waterfall = explainer.plot_waterfall(exp_result)
-            st.plotly_chart(fig_waterfall, use_container_width=True)
+            st.plotly_chart(fig_waterfall, use_container_width=True, config=PROPSIGHT_MODEBAR_CONFIG)
 
             # Top Factors Breakdown
             st.markdown("##### 📌 Top Feature Attributions")

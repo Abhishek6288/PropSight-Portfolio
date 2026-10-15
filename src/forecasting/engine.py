@@ -16,6 +16,7 @@ from statsmodels.tsa.holtwinters import SimpleExpSmoothing
 
 from src.data.loader import DataLoader
 from src.utils.formatting import format_inr_raw, format_pct
+from src.utils.charts import apply_chart_theme, PROPSIGHT_COLORS, PROPSIGHT_MODEBAR_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -248,81 +249,208 @@ class LocalityForecastEngine:
             "scenarios": scenarios
         }
 
-    def plot_forecast_and_history(self, forecast_res: Dict[str, Any]) -> go.Figure:
-        """Plot combined historical trend, future ARIMA forecast, and 80%/95% confidence bands."""
+    def plot_backtest_comparison(self, backtest_res: Dict[str, Any]) -> go.Figure:
+        """
+        Plot chronological walk-forward back-testing comparison on held-out 2024 quarters:
+        Actual Ground Truth vs. ARIMA, Exponential Smoothing, and 4Q Moving Average.
+        """
         fig = go.Figure()
+        q_labels = backtest_res["test_quarters"]
+        actuals = backtest_res["actual_values"]
 
-        # Historical line
+        # 1. Actual Ground Truth
         fig.add_trace(go.Scatter(
-            x=forecast_res["historical_quarters"],
-            y=forecast_res["historical_rates"],
+            x=q_labels,
+            y=actuals,
             mode="lines+markers",
-            name="Historical Avg Rate",
-            line=dict(color="#334155", width=2.5),
-            marker=dict(size=4)
+            name="Actual Ground Truth",
+            line=dict(color=PROPSIGHT_COLORS["navy_primary"], width=3.5),
+            marker=dict(size=9, color=PROPSIGHT_COLORS["navy_primary"], symbol="circle"),
+            hovertemplate="Quarter: %{x}<br>Ground Truth Rate: ₹%{y:,.1f}/sq.ft.<extra></extra>"
         ))
 
-        # Future forecast
+        # Model styles
+        style_map = {
+            "ARIMA(1,1,1)": dict(color=PROPSIGHT_COLORS["primary_teal"], width=2.5, dash="dash", symbol="diamond"),
+            "Exponential Smoothing": dict(color=PROPSIGHT_COLORS["blue_accent"], width=2.0, dash="dot", symbol="square"),
+            "Moving Average (4Q)": dict(color=PROPSIGHT_COLORS["amber_accent"], width=2.0, dash="dashdot", symbol="triangle-up")
+        }
+
+        for model_name, m_res in backtest_res["models"].items():
+            st_cfg = style_map.get(model_name, dict(color=PROPSIGHT_COLORS["slate_muted"], width=2.0, dash="dash", symbol="circle"))
+            preds = m_res["predictions"]
+            is_best = (model_name == backtest_res["selected_best_model"])
+            name_label = f"{model_name} (MAPE: {m_res['mape_pct']:.1f}%)" + (" ⭐" if is_best else "")
+
+            fig.add_trace(go.Scatter(
+                x=q_labels,
+                y=preds,
+                mode="lines+markers",
+                name=name_label,
+                line=dict(color=st_cfg["color"], width=st_cfg["width"] + (1.0 if is_best else 0), dash=st_cfg["dash"]),
+                marker=dict(size=7 if is_best else 6, color=st_cfg["color"], symbol=st_cfg["symbol"]),
+                hovertemplate=f"<b>{model_name}</b><br>Quarter: %{{x}}<br>Predicted: ₹%{{y:,.1f}}/sq.ft.<extra></extra>"
+            ))
+
+        apply_chart_theme(
+            fig,
+            title=f"Walk-Forward Back-Testing Evaluation on Held-Out 2024 Quarters — {backtest_res['locality']}",
+            xaxis_title="Validation Quarter",
+            yaxis_title="Rate (₹/sq.ft.)",
+            height=360,
+            hovermode="x unified"
+        )
+        return fig
+
+    def plot_forecast_and_history(self, forecast_res: Dict[str, Any]) -> go.Figure:
+        """
+        Plot combined historical series, ARIMA forecast, and dual 80% & 95% prediction intervals
+        with clear vertical demarcation between historical observation and projection horizon.
+        """
+        fig = go.Figure()
         fc_df = forecast_res["forecast_table"]
-        # Connect last historical point to first forecast
-        connect_x = [forecast_res["historical_quarters"][-1]] + list(fc_df["Quarter"])
-        connect_y = [forecast_res["historical_rates"][-1]] + list(fc_df["Forecast Rate (₹/sq.ft.)"])
+        hist_q = forecast_res["historical_quarters"]
+        hist_r = forecast_res["historical_rates"]
+        last_hist_quarter = hist_q[-1]
 
+        # 1. Outer 95% Prediction Interval Ribbon (Epistemic Uncertainty Outer Bound)
         fig.add_trace(go.Scatter(
-            x=connect_x,
-            y=connect_y,
-            mode="lines+markers",
-            name="ARIMA Central Forecast",
-            line=dict(color="#0284C7", width=3, dash="dash"),
-            marker=dict(size=6, color="#0284C7")
+            x=list(fc_df["Quarter"]) + list(fc_df["Quarter"])[::-1],
+            y=list(fc_df["Upper 95% CI"]) + list(fc_df["Lower 95% CI"])[::-1],
+            fill="toself",
+            fillcolor="rgba(13, 148, 136, 0.08)",
+            line=dict(color="rgba(255,255,255,0)"),
+            hoverinfo="skip",
+            showlegend=True,
+            name="95% Confidence Interval"
         ))
 
-        # 80% Confidence Interval Band
+        # 2. Inner 80% Prediction Interval Ribbon (Standard Core Horizon)
         fig.add_trace(go.Scatter(
             x=list(fc_df["Quarter"]) + list(fc_df["Quarter"])[::-1],
             y=list(fc_df["Upper 80% CI"]) + list(fc_df["Lower 80% CI"])[::-1],
             fill="toself",
-            fillcolor="rgba(2, 132, 199, 0.15)",
+            fillcolor="rgba(13, 148, 136, 0.22)",
             line=dict(color="rgba(255,255,255,0)"),
             hoverinfo="skip",
             showlegend=True,
             name="80% Prediction Interval"
         ))
 
-        fig.update_layout(
+        # 3. Historical Observations Line
+        fig.add_trace(go.Scatter(
+            x=hist_q,
+            y=hist_r,
+            mode="lines+markers",
+            name="Historical Recorded Rate",
+            line=dict(color=PROPSIGHT_COLORS["slate_dark"], width=2.5),
+            marker=dict(size=5, color=PROPSIGHT_COLORS["navy_primary"]),
+            hovertemplate="Quarter: %{x}<br>Recorded Avg: ₹%{y:,.1f}/sq.ft.<extra></extra>"
+        ))
+
+        # 4. Central ARIMA Forecast (Connected from last historical point)
+        connect_x = [hist_q[-1]] + list(fc_df["Quarter"])
+        connect_y = [hist_r[-1]] + list(fc_df["Forecast Rate (₹/sq.ft.)"])
+
+        fig.add_trace(go.Scatter(
+            x=connect_x,
+            y=connect_y,
+            mode="lines+markers",
+            name="ARIMA Central Forecast",
+            line=dict(color=PROPSIGHT_COLORS["primary_teal"], width=3.0, dash="dash"),
+            marker=dict(size=7, color=PROPSIGHT_COLORS["primary_teal"], symbol="diamond"),
+            hovertemplate="Quarter: %{x}<br>Forecast: ₹%{y:,.1f}/sq.ft.<extra></extra>"
+        ))
+
+        # Demarcation vertical reference line separating historical data from forecast
+        fig.add_vline(
+            x=last_hist_quarter,
+            line_dash="dot",
+            line_color=PROPSIGHT_COLORS["slate_muted"],
+            line_width=1.5
+        )
+        fig.add_annotation(
+            x=last_hist_quarter,
+            y=1.02,
+            yref="paper",
+            text="Forecast Horizon Cutoff",
+            showarrow=False,
+            xanchor="right",
+            font=dict(size=10, color=PROPSIGHT_COLORS["slate_muted"])
+        )
+
+        apply_chart_theme(
+            fig,
             title=f"Locality Rate Projection & Uncertainty Bands — {forecast_res['locality']}",
-            xaxis_title="Quarter",
+            xaxis_title="Timeline (Historical Observations → Forecast Quarters)",
             yaxis_title="Average Rate (₹/sq.ft.)",
-            plot_bgcolor="#FFFFFF",
-            height=380,
-            margin=dict(l=20, r=20, t=40, b=40),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            height=400,
+            hovermode="closest"
         )
         return fig
 
     def plot_scenarios(self, scenario_res: Dict[str, Any]) -> go.Figure:
-        """Plot 3-Year Scenario Fan Chart (Conservative, Baseline, High Growth)."""
+        """
+        Plot 3-Year Macroeconomic Scenario Fan Chart (Conservative, Baseline, High Growth)
+        with shaded divergence corridor and terminal cumulative appreciation markers.
+        """
         fig = go.Figure()
         years_str = [str(y) for y in scenario_res["years"]]
+        scenarios = scenario_res["scenarios"]
 
-        for name, details in scenario_res["scenarios"].items():
+        # Divergence corridor shading between Conservative and High Growth
+        if "Conservative Scenario" in scenarios and "High Growth Scenario" in scenarios:
+            cons_rates = scenarios["Conservative Scenario"]["projected_rates"]
+            high_rates = scenarios["High Growth Scenario"]["projected_rates"]
+            fig.add_trace(go.Scatter(
+                x=years_str + years_str[::-1],
+                y=high_rates + cons_rates[::-1],
+                fill="toself",
+                fillcolor="rgba(13, 148, 136, 0.07)",
+                line=dict(color="rgba(255,255,255,0)"),
+                hoverinfo="skip",
+                showlegend=True,
+                name="Macro Scenario Spread Corridor"
+            ))
+
+        color_palette = {
+            "Conservative Scenario": PROPSIGHT_COLORS["rose_accent"],
+            "Baseline Scenario": PROPSIGHT_COLORS["blue_accent"],
+            "High Growth Scenario": PROPSIGHT_COLORS["emerald_accent"]
+        }
+
+        for name, details in scenarios.items():
+            sc_color = color_palette.get(name, details.get("color", PROPSIGHT_COLORS["primary_teal"]))
+            terminal_val = details["terminal_rate"]
+            total_gain = details["total_appreciation_pct"]
+
             fig.add_trace(go.Scatter(
                 x=years_str,
                 y=details["projected_rates"],
                 mode="lines+markers",
                 name=f"{name} ({details['annual_growth_pct']:+.1f}% p.a.)",
-                line=dict(color=details["color"], width=2.5),
-                marker=dict(size=6)
+                line=dict(color=sc_color, width=2.8),
+                marker=dict(size=7, color=sc_color),
+                hovertemplate=f"<b>{name}</b><br>Year: %{{x}}<br>Rate: ₹%{{y:,.1f}}/sq.ft.<br>Total Gain: {total_gain:+.1f}%<extra></extra>"
             ))
 
-        fig.update_layout(
-            title=f"3-Year Multi-Scenario Trajectory (2024-2027) — {scenario_res['locality']}",
-            xaxis_title="Year",
+            # Add terminal annotation at the end of each trajectory
+            fig.add_annotation(
+                x=years_str[-1],
+                y=terminal_val,
+                text=f" ₹{terminal_val:,.0f} ({total_gain:+.1f}%)",
+                showarrow=False,
+                xanchor="left",
+                font=dict(size=11, color=sc_color, family="system-ui, sans-serif")
+            )
+
+        apply_chart_theme(
+            fig,
+            title=f"3-Year Multi-Scenario Trajectory (2024–{years_str[-1]}) — {scenario_res['locality']}",
+            xaxis_title="Projection Year",
             yaxis_title="Estimated Rate (₹/sq.ft.)",
-            plot_bgcolor="#FFFFFF",
-            height=360,
-            margin=dict(l=20, r=20, t=40, b=40),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            height=390,
+            hovermode="x unified"
         )
         return fig
 

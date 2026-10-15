@@ -106,48 +106,109 @@ class LocalityAnalytics:
             loc_df,
             x="price_lakhs",
             nbins=25,
-            title=f"Price Distribution in {locality} (₹ Lakhs)",
-            labels={"price_lakhs": "Listing Price (₹ Lakhs)"},
-            color_discrete_sequence=["#0EA5E9"]
+            color_discrete_sequence=["#0D9488"],
+            opacity=0.75,
+            labels={"price_lakhs": "Listing Price (₹ Lakhs)"}
         )
+
+        q25 = float(loc_df["price_lakhs"].quantile(0.25))
+        q75 = float(loc_df["price_lakhs"].quantile(0.75))
+
         fig.add_vline(
             x=median_val,
             line_dash="dash",
             line_color="#0F172A",
+            line_width=2,
             annotation_text=f"Median: ₹{median_val:.1f}L",
-            annotation_position="top right"
+            annotation_position="top right",
+            annotation_font=dict(size=11, color="#0F172A", weight="bold")
         )
-        fig.update_layout(
-            plot_bgcolor="#FFFFFF",
-            height=340,
-            margin=dict(l=20, r=20, t=40, b=30),
-            yaxis_title="Count"
+        fig.add_vrect(
+            x0=q25, x1=q75,
+            fillcolor="rgba(13, 148, 136, 0.12)",
+            line_width=0,
+            annotation_text="IQR Core Band",
+            annotation_position="top left",
+            annotation_font=dict(size=9.5, color="#0D9488")
+        )
+
+        from src.utils.charts import apply_chart_theme
+        apply_chart_theme(
+            fig,
+            title=f"Price Distribution in {locality} (₹ Lakhs)",
+            xaxis_title="Listing Price (₹ Lakhs)",
+            yaxis_title="Property Count",
+            height=350
         )
         return fig
 
-    def plot_historical_series(self, locality: str) -> go.Figure:
-        """Plot quarterly average price per sq.ft. trend from 2018 to 2024."""
+    def plot_historical_series(self, locality: str, show_moving_avg: bool = True) -> go.Figure:
+        """Plot quarterly average price per sq.ft. trend with moving average and range slider."""
         hist_df = self.df_hist[self.df_hist["locality"] == locality].sort_values(by=["year", "quarter_num"])
         
         fig = go.Figure()
+
+        # Primary rate line
         fig.add_trace(go.Scatter(
             x=hist_df["quarter"],
             y=hist_df["avg_price_per_sqft"],
             mode="lines+markers",
-            name="Avg Rate (₹/sq.ft.)",
-            line=dict(color="#0284C7", width=3),
-            marker=dict(size=6, color="#0F172A")
+            name="Quarterly Rate",
+            line=dict(color="#0D9488", width=2.5),
+            marker=dict(size=6, color="#0F172A"),
+            hovertemplate="Quarter: %{x}<br>Average Rate: ₹%{y:,.1f}/sq.ft.<extra></extra>"
         ))
 
-        fig.update_layout(
-            title=f"Historical Price per Sq.Ft. Trend — {locality} (2018-2024)",
-            xaxis_title="Quarter",
-            yaxis_title="Average Rate (₹/sq.ft.)",
-            plot_bgcolor="#FFFFFF",
-            height=360,
-            margin=dict(l=20, r=20, t=40, b=40)
+        # 4-Quarter Rolling Average
+        if show_moving_avg and len(hist_df) >= 4:
+            ma = hist_df["avg_price_per_sqft"].rolling(window=4, min_periods=1).mean()
+            fig.add_trace(go.Scatter(
+                x=hist_df["quarter"],
+                y=ma,
+                mode="lines",
+                name="4Q Rolling Trend",
+                line=dict(color="#0284C7", width=1.5, dash="dot"),
+                hovertemplate="Rolling 4Q Trend: ₹%{y:,.1f}/sq.ft.<extra></extra>"
+            ))
+
+        from src.utils.charts import apply_chart_theme
+        apply_chart_theme(
+            fig,
+            title=f"Historical Price per Sq.Ft. Evolution — {locality} (2018-2024)",
+            xaxis_title="Timeline",
+            yaxis_title="Rate (₹/sq.ft.)",
+            height=370,
+            hovermode="x unified"
+        )
+
+        fig.update_xaxes(
+            rangeslider=dict(visible=True, thickness=0.06, bgcolor="#F8FAFC"),
+            rangeselector=dict(
+                buttons=list([
+                    dict(count=4, label="1Y", step="all", stepmode="backward"),
+                    dict(count=8, label="2Y", step="all", stepmode="backward"),
+                    dict(count=16, label="4Y", step="all", stepmode="backward"),
+                    dict(step="all", label="All")
+                ]),
+                font=dict(size=10, color="#1E293B"),
+                bgcolor="#FFFFFF",
+                activecolor="#0D9488"
+            )
         )
         return fig
+
+    def plot_locality_scatter(self, locality: str) -> go.Figure:
+        """Plot price vs area scatter for the specific micro-market."""
+        loc_df = self.df_props[self.df_props["locality"] == locality]
+        from src.utils.charts import build_price_vs_area_scatter
+        return build_price_vs_area_scatter(
+            loc_df,
+            x_col="carpet_area_sqft",
+            y_col="price_lakhs",
+            color_col="bhk",
+            title=f"Listing Landscape in {locality}: Price vs. Carpet Area",
+            sample_size=500
+        )
 
 if __name__ == "__main__":
     analytics = LocalityAnalytics()
