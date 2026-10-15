@@ -1,0 +1,82 @@
+{
+  "model_version": "1.0.0",
+  "training_timestamp": "2026-10-15T12:46:00.761406",
+  "selected_model": "Gradient Boosting",
+  "target_column": "price_lakhs",
+  "target_type": "listing_price",
+  "is_synthetic": true,
+  "data_source": "PropSight Demonstration Dataset (Calibrated to Pune/PCMC Market Reports 2018-2024)",
+  "training_samples": 2880,
+  "test_samples": 720,
+  "total_samples": 3600,
+  "best_model_metrics": {
+    "cv_r2_mean": 0.9695644112126669,
+    "cv_r2_std": 0.004520472951363081,
+    "train_r2": 0.9945699966110766,
+    "test_r2": 0.9628009185932509,
+    "test_mae_lakhs": 6.813618035121916,
+    "test_rmse_lakhs": 12.145810059422066,
+    "test_mape_pct": 6.2824256959035765
+  },
+  "candidate_comparison": {
+    "Linear Regression": {
+      "cv_r2_mean": 0.9342395389581671,
+      "cv_r2_std": 0.004972951066714715,
+      "train_r2": 0.9371086028123181,
+      "test_r2": 0.9199138434227457,
+      "test_mae_lakhs": 11.086750944538286,
+      "test_rmse_lakhs": 17.821288603351817,
+      "test_mape_pct": 11.939128415299932
+    },
+    "Ridge Regression": {
+      "cv_r2_mean": 0.9344541438122844,
+      "cv_r2_std": 0.00549303112910874,
+      "train_r2": 0.9366878964989415,
+      "test_r2": 0.9201027004902762,
+      "test_mae_lakhs": 11.022038812205329,
+      "test_rmse_lakhs": 17.800263353767402,
+      "test_mape_pct": 11.740134747084536
+    },
+    "Lasso Regression": {
+      "cv_r2_mean": 0.9326534818504492,
+      "cv_r2_std": 0.005621750848064203,
+      "train_r2": 0.9346391227517035,
+      "test_r2": 0.9185705914997242,
+      "test_mae_lakhs": 11.131468234570507,
+      "test_rmse_lakhs": 17.97012166468819,
+      "test_mape_pct": 11.626904354863871
+    },
+    "Random Forest": {
+      "cv_r2_mean": 0.9523051794623243,
+      "cv_r2_std": 0.0035810385473268045,
+      "train_r2": 0.9917353368711216,
+      "test_r2": 0.9351974669949723,
+      "test_mae_lakhs": 8.554621833349819,
+      "test_rmse_lakhs": 16.030843278715803,
+      "test_mape_pct": 7.768954228176785
+    },
+    "Gradient Boosting": {
+      "cv_r2_mean": 0.9695644112126669,
+      "cv_r2_std": 0.004520472951363081,
+      "train_r2": 0.9945699966110766,
+      "test_r2": 0.9628009185932509,
+      "test_mae_lakhs": 6.813618035121916,
+      "test_rmse_lakhs": 12.145810059422066,
+      "test_mape_pct": 6.2824256959035765
+    },
+    "XGBoost": {
+      "cv_r2_mean": 0.9681299812656704,
+      "cv_r2_std": 0.0037210673924350686,
+      "train_r2": 0.9938487474613255,
+      "test_r2": 0.9600172864270602,
+      "test_mae_lakhs": 6.660162769741482,
+      "test_rmse_lakhs": 12.592052052555166,
+      "test_mape_pct": 6.087940612152701
+    }
+  },
+  "uncertainty_parameters": {
+    "residual_std_lakhs": 5.566816876848069,
+    "residual_q10_lakhs": -6.291851943654609,
+    "residual_q90_lakhs": 6.217672479655281
+  }
+}
